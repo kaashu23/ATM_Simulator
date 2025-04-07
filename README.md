@@ -29,7 +29,14 @@ A simple ATM Simulator desktop application built using **Java (Swing)** and **My
 
 ---
 
-## 📂 Project Structure
+## 👨‍💻 Author
+
+- **Name:** Kashish  
+- **Education:** BSc IT (Second Year)  
+- **Skills:** Python, Java, C++, MySQL, Tkinter, Java Swing, Android (Flutter, React Native)
+- **Projects:** ATM Simulator and may More...
+- **GitHub:** [YourGitHubUsername](https://github.com/kaashu23)
+
 
 ## 📸 Screenshots
 
