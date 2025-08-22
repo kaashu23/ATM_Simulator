@@ -1,0 +1,35 @@
+package com.example.practical1bairplanemode
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+    }
+
+    val airplaneModeReceiver = object : BroadcastReceiver(){
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Toast.makeText(context,"Flight mode changed",Toast.LENGTH_LONG).show()
+
+        }
+    }
+    override fun onResume() {
+        super.onResume()
+        registerReceiver(airplaneModeReceiver,IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED))
+    }
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(airplaneModeReceiver)
+    }
+}

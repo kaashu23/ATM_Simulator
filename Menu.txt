@@ -1,0 +1,108 @@
+package com.example.testdelete
+
+import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+        val toolbar : Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menubar,menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when(item.itemId){
+            R.id.first->{
+                Toast.makeText(this,"hello",Toast.LENGTH_SHORT).show()
+                true
+            }
+            R.id.second->{
+                true
+            }
+            R.id.third->{
+                true
+            }
+            R.id.fourth->{
+                true
+            }
+            else->{
+                super.onOptionsItemSelected(item)
+            }
+        }
+    }
+}
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="438dp"
+        android:layout_height="70dp"
+        android:background="?attr/colorPrimary"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme"
+        app:title="TECHNOWAVE"
+        app:titleTextColor="@color/red"
+        app:titleCentered="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+create menu folder and menubar xml file
+
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/first"
+        android:title="Hello"
+        android:icon="@drawable/ic_launcher_background"
+        app:showAsAction="ifRoom">
+    </item>
+
+    <item
+        android:id="@+id/second"
+        android:title="abc"
+        android:icon="@drawable/outline_50mp_24"
+        app:showAsAction="collapseActionView">
+    </item>
+
+    <item
+        android:id="@+id/third"
+        android:title="abc"
+        android:icon="@drawable/outline_50mp_24"
+        app:showAsAction="collapseActionView">
+    </item>
+
+    <item
+        android:id="@+id/fourth"
+        android:title="xyz"
+        android:icon="@drawable/outline_50mp_24"
+        app:showAsAction="collapseActionView">
+    </item>
+
+</menu>
