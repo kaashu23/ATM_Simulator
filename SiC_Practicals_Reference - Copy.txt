@@ -1,0 +1,826 @@
+================================================================
+  SECURITY IN COMPUTING - PACKET TRACER COMMAND REFERENCE
+  University of Mumbai | BSc IT | Teacher's Reference Manual (2018-19)
+================================================================
+
+TABLE OF CONTENTS
+-----------------
+ 1. Practical 1  - Configure Cisco Routers for Syslog, NTP, and SSH Operations
+ 2. Practical 2  - Configure AAA Authentication on Cisco Routers
+ 3. Practical 3 (Scenario 1) - Configuring Extended ACLs
+ 4. Practical 3 (Scenario 2) - Configuring Extended ACLs
+ 5. Practical 4  - Configure IP ACLs to Mitigate Attacks
+ 6. Practical 5  - Configuring IPv6 ACLs
+ 7. Practical 6  - Configuring a Zone-Based Policy Firewall (ZPF)
+ 8. Practical 7  - Configure IOS IPS Using the CLI
+ 9. Practical 8  - Layer 2 Security
+10. Practical 9  - Layer 2 VLAN Security
+11. Practical 10 - Configure and Verify a Site-to-Site IPsec VPN
+12. Practical 11 - Configuring ASA Basic Settings and Firewall Using CLI
+
+================================================================
+PRACTICAL 1 - Configure Cisco Routers for Syslog, NTP, and SSH Operations
+Routers: R1, R2, R3 | PCs: PC-A, PC-B, PC-C | Servers: NTP (192.168.1.5), Syslog (192.168.1.6)
+================================================================
+
+Objectives:
+  - Configure OSPF MD5 Authentication
+  - Configure NTP (with Authentication)
+  - Configure Syslog Logging
+  - Configure SSH on R3
+
+------------------------------------------------------------------
+Part 1 - Configure OSPF MD5 Authentication
+------------------------------------------------------------------
+
+Step 2 - Enable OSPF MD5 Authentication (Area 0)
+
+[R1]
+R1(config)# router ospf 1
+R1(config-router)# area 0 authentication message-digest
+
+[R2]
+R2(config)# router ospf 1
+R2(config-router)# area 0 authentication message-digest
+
+[R3]
+R3(config)# router ospf 1
+R3(config-router)# area 0 authentication message-digest
+
+Step 3 - Configure MD5 Key on Serial Interfaces (Key 1, Password: MD5pa55)
+
+[R1]
+R1(config)# interface s0/0/0
+R1(config-if)# ip ospf message-digest-key 1 md5 MD5pa55
+
+[R2]
+R2(config)# interface s0/0/0
+R2(config-if)# ip ospf message-digest-key 1 md5 MD5pa55
+R2(config-if)# interface s0/0/1
+R2(config-if)# ip ospf message-digest-key 1 md5 MD5pa55
+
+[R3]
+R3(config)# interface s0/0/1
+R3(config-if)# ip ospf message-digest-key 1 md5 MD5pa55
+
+Step 4 - Verify
+  show ip ospf interface
+
+------------------------------------------------------------------
+Part 2 - Configure NTP
+------------------------------------------------------------------
+
+Step 1 - Enable NTP Authentication on PC-A (NTP Server)
+  Services Tab -> NTP -> Enable Authentication
+  Key: 1 | Password: NTPpa55
+
+Step 2 - Configure R1, R2, R3 as NTP Clients
+R1(config)# ntp server 192.168.1.5
+R2(config)# ntp server 192.168.1.5
+R3(config)# ntp server 192.168.1.5
+  Verify: show ntp status
+
+Step 3 - Update Hardware Clock from NTP
+R1(config)# ntp update-calendar
+R2(config)# ntp update-calendar
+R3(config)# ntp update-calendar
+
+Step 4 - Configure NTP Authentication on Routers (Key 1, Password: NTPpa55)
+
+[R1]
+R1(config)# ntp authenticate
+R1(config)# ntp trusted-key 1
+R1(config)# ntp authentication-key 1 md5 NTPpa55
+
+[R2]
+R2(config)# ntp authenticate
+R2(config)# ntp trusted-key 1
+R2(config)# ntp authentication-key 1 md5 NTPpa55
+
+[R3]
+R3(config)# ntp authenticate
+R3(config)# ntp trusted-key 1
+R3(config)# ntp authentication-key 1 md5 NTPpa55
+
+Step 5 - Configure Timestamp Service for Logging
+R1(config)# service timestamps log datetime msec
+R2(config)# service timestamps log datetime msec
+R3(config)# service timestamps log datetime msec
+
+------------------------------------------------------------------
+Part 3 - Configure Syslog Logging (Syslog Server: 192.168.1.6)
+------------------------------------------------------------------
+R1(config)# logging host 192.168.1.6
+R2(config)# logging host 192.168.1.6
+R3(config)# logging host 192.168.1.6
+  Verify: show logging
+
+------------------------------------------------------------------
+Part 4 - Configure SSH on R3
+------------------------------------------------------------------
+
+Steps 1-7 - Full SSH Configuration on R3
+R3(config)# ip domain-name ccnasecurity.com
+R3(config)# username SSHadmin privilege 15 secret ciscosshpa55
+R3(config)# line vty 0 4
+R3(config-line)# login local
+R3(config-line)# transport input ssh
+R3(config)# crypto key zeroize rsa
+R3(config)# crypto key generate rsa
+  ! When prompted -> enter: 1024
+R3(config)# ip ssh time-out 90
+R3(config)# ip ssh authentication-retries 2
+R3(config)# ip ssh version 2
+
+Steps 8-10 - Test SSH Connections
+  PC-C -> SSH to R3:   PC> ssh -l SSHadmin 192.168.3.1   Password: ciscosshpa55
+  R2 -> SSH to R3:     R2# ssh -v 2 -l SSHadmin 10.2.2.1  Password: ciscosshpa55
+  NOTE: Telnet to R3 should FAIL (only SSH permitted on VTY lines)
+
+
+================================================================
+PRACTICAL 2 - Configure AAA Authentication on Cisco Routers
+R1 (Local AAA) | R2 (TACACS+ Server: 192.168.2.2) | R3 (RADIUS Server: 192.168.3.2)
+================================================================
+
+Objectives:
+  - Configure Local AAA on R1 for Console and VTY access
+  - Configure TACACS+ server-based AAA on R2
+  - Configure RADIUS server-based AAA on R3
+
+------------------------------------------------------------------
+Part 1 - Local AAA for Console Access on R1
+------------------------------------------------------------------
+R1(config)# username Admin1 secret admin1pa55
+R1(config)# aaa new-model
+R1(config)# aaa authentication login default local
+R1(config)# line console 0
+R1(config-line)# login authentication default
+
+------------------------------------------------------------------
+Part 2 - Local AAA for VTY Lines (SSH) on R1
+------------------------------------------------------------------
+R1(config)# ip domain-name ccnasecurity.com
+R1(config)# crypto key generate rsa
+  ! When prompted -> enter: 1024
+R1(config)# aaa authentication login SSH-LOGIN local
+R1(config)# line vty 0 4
+R1(config-line)# login authentication SSH-LOGIN
+R1(config-line)# transport input ssh
+
+Verify SSH from PC-A to R1:
+  PC> ssh -l Admin1 192.168.1.1    Password: admin1pa55
+
+------------------------------------------------------------------
+Part 3 - TACACS+ Server-Based AAA on R2
+------------------------------------------------------------------
+R2(config)# username Admin2 secret admin2pa55
+R2(config)# tacacs-server host 192.168.2.2
+R2(config)# tacacs-server key tacacspa55
+R2(config)# aaa new-model
+R2(config)# aaa authentication login default group tacacs+ local
+R2(config)# line console 0
+R2(config-line)# login authentication default
+  Login: Username: Admin2 | Password: admin2pa55
+
+------------------------------------------------------------------
+Part 4 - RADIUS Server-Based AAA on R3
+------------------------------------------------------------------
+R3(config)# username Admin3 secret admin3pa55
+R3(config)# radius-server host 192.168.3.2
+R3(config)# radius-server key radiuspa55
+R3(config)# aaa new-model
+R3(config)# aaa authentication login default group radius local
+R3(config)# line console 0
+R3(config-line)# login authentication default
+  Login: Username: Admin3 | Password: admin3pa55
+
+
+================================================================
+PRACTICAL 3 (SCENARIO 1) - Configuring Extended ACLs
+Router: R1 | PC1 (172.22.34.66) | PC2 (172.22.34.98) | Server (172.22.34.62)
+================================================================
+
+Objectives:
+  - PC1: FTP + ICMP access to Server only
+  - PC2: HTTP + ICMP access to Server only
+  - PCs cannot ping each other
+
+------------------------------------------------------------------
+Part 1 - Extended Numbered ACL 100 (PC1 LAN -> Server: FTP + ICMP)
+------------------------------------------------------------------
+R1(config)# access-list 100 permit tcp 172.22.34.64 0.0.0.31 host 172.22.34.62 eq ftp
+R1(config)# access-list 100 permit icmp 172.22.34.64 0.0.0.31 host 172.22.34.62
+  ! All other traffic denied by implicit deny
+R1(config)# interface gigabitEthernet 0/0
+R1(config-if)# ip access-group 100 in
+  NOTE: Wildcard for /27: 255.255.255.224 -> 0.0.0.31
+
+------------------------------------------------------------------
+Part 2 - Extended Named ACL: HTTP_ONLY (PC2 LAN -> Server: HTTP + ICMP)
+------------------------------------------------------------------
+R1(config)# ip access-list extended HTTP_ONLY
+R1(config-ext-nacl)# permit tcp 172.22.34.96 0.0.0.15 host 172.22.34.62 eq www
+R1(config-ext-nacl)# permit icmp 172.22.34.96 0.0.0.15 host 172.22.34.62
+R1(config-ext-nacl)# exit
+R1(config)# interface gigabitEthernet 0/1
+R1(config-if)# ip access-group HTTP_ONLY in
+  NOTE: Wildcard for /28: 255.255.255.240 -> 0.0.0.15
+
+
+================================================================
+PRACTICAL 3 (SCENARIO 2) - Configuring Extended ACLs
+Router: RTA | PCA (10.101.117.51) | PCB (10.101.117.35) | SWC VLAN1 (10.101.117.2)
+================================================================
+
+Policy:
+  - SSH from 10.101.117.32/28 -> allowed to 10.101.117.0/27
+  - ICMP from any -> allowed to any
+  - All other traffic to 10.101.117.0/27 -> blocked
+
+------------------------------------------------------------------
+Part 1 - Extended Numbered ACL 199 (Applied Outbound on G0/2)
+------------------------------------------------------------------
+RTA(config)# access-list 199 permit tcp 10.101.117.32 0.0.0.15 10.101.117.0 0.0.0.31 eq 22
+RTA(config)# access-list 199 permit icmp any any
+  ! All other traffic denied implicitly
+RTA(config)# interface gigabitEthernet 0/2
+RTA(config-if)# ip access-group 199 out
+
+Tests:
+  SSH from PCB to SWC (10.101.117.2): PC> ssh -l Admin 10.101.117.2  (Password: Adminpa55) -> SUCCEEDS
+  SSH from PCA directly to SWC -> FAILS
+  SSH PCA -> SWB -> SWC (privileged mode) -> SUCCEEDS (bypasses ACL)
+
+
+================================================================
+PRACTICAL 4 - Configure IP ACLs to Mitigate Attacks
+R1, R2, R3 | PC-A (Server: 192.168.1.3) | PC-C (Management: 192.168.3.3)
+================================================================
+
+Objectives:
+  - Restrict SSH/Telnet to routers to PC-C only (ACL 10)
+  - Permit DNS, SMTP, FTP to PC-A; deny HTTPS; allow PC-C SSH to R1 (ACL 120 on R1 S0/0/0)
+  - Allow only internal LAN traffic outbound on R3 G0/1 (ACL 110)
+  - Block RFC1918 / 127.x / Multicast on R3 S0/0/1 (ACL 100)
+
+------------------------------------------------------------------
+Part 2 - ACL 10: Restrict VTY Access to PC-C Only
+------------------------------------------------------------------
+R1(config)# access-list 10 permit host 192.168.3.3
+R1(config)# line vty 0 4
+R1(config-line)# access-class 10 in
+
+R2(config)# access-list 10 permit host 192.168.3.3
+R2(config)# line vty 0 4
+R2(config-line)# access-class 10 in
+
+R3(config)# access-list 10 permit host 192.168.3.3
+R3(config)# line vty 0 4
+R3(config-line)# access-class 10 in
+
+------------------------------------------------------------------
+Part 3 - ACL 120 on R1 S0/0/0 (Inbound): Permit DNS/SMTP/FTP, Deny HTTPS, Allow SSH
+------------------------------------------------------------------
+R1(config)# access-list 120 permit udp any host 192.168.1.3 eq domain
+R1(config)# access-list 120 permit tcp any host 192.168.1.3 eq smtp
+R1(config)# access-list 120 permit tcp any host 192.168.1.3 eq ftp
+R1(config)# access-list 120 deny tcp any host 192.168.1.3 eq 443
+R1(config)# access-list 120 permit tcp host 192.168.3.3 host 10.1.1.1 eq 22
+R1(config)# interface s0/0/0
+R1(config-if)# ip access-group 120 in
+
+------------------------------------------------------------------
+Part 4 - Modify ACL 120: Permit ICMP Echo-Reply and Unreachable, Deny All Other ICMP
+------------------------------------------------------------------
+R1(config)# access-list 120 permit icmp any any echo-reply
+R1(config)# access-list 120 permit icmp any any unreachable
+R1(config)# access-list 120 deny icmp any any
+R1(config)# access-list 120 permit ip any any
+
+------------------------------------------------------------------
+Part 5 - ACL 110 on R3 G0/1 (Inbound): Allow Only Internal Traffic Outbound
+------------------------------------------------------------------
+R3(config)# access-list 110 permit ip 192.168.3.0 0.0.0.255 any
+R3(config)# interface g0/1
+R3(config-if)# ip access-group 110 in
+
+------------------------------------------------------------------
+Part 6 - ACL 100 on R3 S0/0/1 (Inbound): Block Bogon/RFC1918/Multicast
+------------------------------------------------------------------
+R3(config)# access-list 100 permit tcp 10.0.0.0 0.255.255.255 eq 22 host 192.168.3.3
+R3(config)# access-list 100 deny ip 10.0.0.0 0.255.255.255 any
+R3(config)# access-list 100 deny ip 172.16.0.0 0.15.255.255 any
+R3(config)# access-list 100 deny ip 192.168.0.0 0.0.255.255 any
+R3(config)# access-list 100 deny ip 127.0.0.0 0.255.255.255 any
+R3(config)# access-list 100 deny ip 224.0.0.0 15.255.255.255 any
+R3(config)# access-list 100 permit ip any any
+R3(config)# interface s0/0/1
+R3(config-if)# ip access-group 100 in
+
+
+================================================================
+PRACTICAL 5 - Configuring IPv6 ACLs
+R1 (BLOCK_HTTP on G0/1 inbound) | R3 (BLOCK_ICMP on G0/0 outbound) | Server3: 2001:DB8:1:30::30/64
+================================================================
+
+Objectives:
+  - Block HTTP/HTTPS from 2001:DB8:1:11::/64 (PC2 network) to Server3
+  - Block all ICMP pings to Server3
+
+------------------------------------------------------------------
+Part 1 - ACL BLOCK_HTTP on R1 (Block HTTP/HTTPS from PC2's network)
+------------------------------------------------------------------
+R1(config)# ipv6 access-list BLOCK_HTTP
+R1(config-ipv6-acl)# deny tcp any host 2001:DB8:1:30::30 eq www
+R1(config-ipv6-acl)# deny tcp any host 2001:DB8:1:30::30 eq 443
+R1(config-ipv6-acl)# permit ipv6 any any
+R1(config)# interface GigabitEthernet0/1
+R1(config-if)# ipv6 traffic-filter BLOCK_HTTP in
+
+  NOTE: PC1 (different network) can still browse Server3. PC2 browsing blocked. Pings still work from PC2.
+
+------------------------------------------------------------------
+Part 2 - ACL BLOCK_ICMP on R3 (Block All ICMP to Server3)
+------------------------------------------------------------------
+R3(config)# ipv6 access-list BLOCK_ICMP
+R3(config-ipv6-acl)# deny icmp any any
+R3(config-ipv6-acl)# permit ipv6 any any
+R3(config)# interface GigabitEthernet0/0
+R3(config-if)# ipv6 traffic-filter BLOCK_ICMP out
+
+  NOTE: After this, pings from both PC1 and PC2 to Server3 FAIL. HTTP from PC1 still WORKS.
+
+
+================================================================
+PRACTICAL 6 - Configuring a Zone-Based Policy Firewall (ZPF)
+R3 (ZPF configured) | IN-ZONE: G0/1 (192.168.3.x) | OUT-ZONE: S0/0/1
+================================================================
+
+Objectives:
+  - Internal hosts (PC-C) can initiate outbound traffic
+  - External hosts (PC-A) cannot initiate traffic to internal network
+
+------------------------------------------------------------------
+Part 2 - Create Zones on R3
+------------------------------------------------------------------
+R3(config)# license boot module c1900 technology-package securityk9
+  ! Accept EULA, save and reload
+R3(config)# zone security IN-ZONE
+R3(config-sec-zone)# exit
+R3(config)# zone security OUT-ZONE
+R3(config-sec-zone)# exit
+
+------------------------------------------------------------------
+Part 3 - Create Class-Map to Identify Internal Traffic
+------------------------------------------------------------------
+R3(config)# access-list 101 permit ip 192.168.3.0 0.0.0.255 any
+R3(config)# class-map type inspect match-all IN-NET-CLASS-MAP
+R3(config-cmap)# match access-group 101
+R3(config-cmap)# exit
+
+------------------------------------------------------------------
+Part 4 - Specify Firewall Policy
+------------------------------------------------------------------
+R3(config)# policy-map type inspect IN-2-OUT-PMAP
+R3(config-pmap)# class type inspect IN-NET-CLASS-MAP
+R3(config-pmap-c)# inspect
+R3(config-pmap-c)# exit
+R3(config-pmap)# exit
+
+------------------------------------------------------------------
+Part 5 - Apply Firewall Policies
+------------------------------------------------------------------
+R3(config)# zone-pair security IN-2-OUT-ZPAIR source IN-ZONE destination OUT-ZONE
+R3(config-sec-zone-pair)# service-policy type inspect IN-2-OUT-PMAP
+R3(config-sec-zone-pair)# exit
+R3(config)# interface g0/1
+R3(config-if)# zone-member security IN-ZONE
+R3(config-if)# exit
+R3(config)# interface s0/0/1
+R3(config-if)# zone-member security OUT-ZONE
+R3(config-if)# exit
+
+Verification:
+  PC-C -> ping PC-A (192.168.1.3): SUCCEEDS (outbound from IN-ZONE)
+  PC-A -> ping PC-C (192.168.3.3): FAILS   (inbound from OUT-ZONE not permitted)
+  R3# show policy-map type inspect zone-pair sessions
+
+
+================================================================
+PRACTICAL 7 - Configure IOS Intrusion Prevention System (IPS) Using CLI
+R1 (IPS enabled on G0/1 outbound) | Syslog Server: 192.168.1.50
+================================================================
+
+Objectives:
+  - Enable IPS on R1 to scan traffic entering the 192.168.1.0 network
+  - Drop ICMP echo requests (signature 2004)
+  - Log IPS events to Syslog server
+
+------------------------------------------------------------------
+Part 1 - Enable IOS IPS on R1
+------------------------------------------------------------------
+R1(config)# license boot module c1900 technology-package securityk9
+  ! Accept EULA, save and reload
+
+R1# mkdir ipsdir
+  ! Press Enter to confirm
+
+R1(config)# ip ips config location flash:ipsdir
+R1(config)# ip ips name iosips
+R1(config)# ip ips notify log
+R1# clock set 10:20:00 10 january 2014
+R1(config)# service timestamps log datetime msec
+R1(config)# logging host 192.168.1.50
+
+R1(config)# ip ips signature-category
+R1(config-ips-category)# category all
+R1(config-ips-category-action)# retired true
+R1(config-ips-category-action)# exit
+R1(config-ips-category)# category ios_ips basic
+R1(config-ips-category-action)# retired false
+R1(config-ips-category-action)# exit
+R1(config-ips-category)# exit
+  ! Press Enter to confirm changes
+
+R1(config)# interface g0/1
+R1(config-if)# ip ips iosips out
+
+------------------------------------------------------------------
+Part 2 - Modify Signature 2004 (ICMP Echo Request -> Alert + Drop)
+------------------------------------------------------------------
+R1(config)# ip ips signature-definition
+R1(config-sigdef)# signature 2004 0
+R1(config-sigdef-sig)# status
+R1(config-sigdef-sig-status)# retired false
+R1(config-sigdef-sig-status)# enabled true
+R1(config-sigdef-sig-status)# exit
+R1(config-sigdef-sig)# engine
+R1(config-sigdef-sig-engine)# event-action produce-alert
+R1(config-sigdef-sig-engine)# event-action deny-packet-inline
+R1(config-sigdef-sig-engine)# exit
+R1(config-sigdef-sig)# exit
+R1(config-sigdef)# exit
+  ! Press Enter to confirm changes
+
+Verification:
+  PC-C -> ping PC-A: FAILS   (echo request dropped by IPS)
+  PC-A -> ping PC-C: SUCCEEDS (IPS blocks echo request sig 2004, not echo reply)
+  R1# show ip ips all
+
+
+================================================================
+PRACTICAL 8 - Packet Tracer: Layer 2 Security
+Switches: Central (3560), SW-1, SW-2, SW-A, SW-B | PCs: C1-C4, D1-D4
+================================================================
+
+Objectives:
+  - Set Central switch as root bridge, SW-1 as secondary
+  - Enable PortFast and BPDU Guard on access ports (SW-A, SW-B)
+  - Enable Root Guard on SW-1 and SW-2 uplink ports
+  - Configure Port Security on all host-facing ports
+  - Disable unused ports
+
+------------------------------------------------------------------
+Part 1 - Configure Root Bridge
+------------------------------------------------------------------
+Central(config)# spanning-tree vlan 1 root primary
+SW-1(config)# spanning-tree vlan 1 root secondary
+  Verify: Central# show spanning-tree  (should show "This bridge is the root")
+
+------------------------------------------------------------------
+Part 2 - Protect Against STP Attacks
+------------------------------------------------------------------
+PortFast + BPDU Guard on Access Ports (SW-A, SW-B):
+
+SW-A(config)# interface range f0/1 - 4
+SW-A(config-if-range)# spanning-tree portfast
+SW-A(config-if-range)# spanning-tree bpduguard enable
+
+SW-B(config)# interface range f0/1 - 4
+SW-B(config-if-range)# spanning-tree portfast
+SW-B(config-if-range)# spanning-tree bpduguard enable
+
+Root Guard on SW-1 and SW-2 (Ports F0/23-24):
+
+SW-1(config)# interface range f0/23 - 24
+SW-1(config-if-range)# spanning-tree guard root
+
+SW-2(config)# interface range f0/23 - 24
+SW-2(config-if-range)# spanning-tree guard root
+
+------------------------------------------------------------------
+Part 3 - Port Security and Disable Unused Ports
+------------------------------------------------------------------
+SW-A(config)# interface range f0/1 - 22
+SW-A(config-if-range)# switchport mode access
+SW-A(config-if-range)# switchport port-security
+SW-A(config-if-range)# switchport port-security maximum 2
+SW-A(config-if-range)# switchport port-security violation shutdown
+SW-A(config-if-range)# switchport port-security mac-address sticky
+SW-A(config)# interface range f0/5 - 22
+SW-A(config-if-range)# shutdown
+
+SW-B(config)# interface range f0/1 - 22
+SW-B(config-if-range)# switchport mode access
+SW-B(config-if-range)# switchport port-security
+SW-B(config-if-range)# switchport port-security maximum 2
+SW-B(config-if-range)# switchport port-security violation shutdown
+SW-B(config-if-range)# switchport port-security mac-address sticky
+SW-B(config)# interface range f0/5 - 22
+SW-B(config-if-range)# shutdown
+
+  Verify: SW-A# show port-security interface f0/1
+
+
+================================================================
+PRACTICAL 9 - Layer 2 VLAN Security
+Switches: Central, SW-1, SW-2, SW-A, SW-B | Router: R1 | Management PC: 192.168.20.50
+================================================================
+
+Objectives:
+  - Add a secure trunk link between SW-1 and SW-2 (Native VLAN 15, no DTP)
+  - Create VLAN 20 (Management) on all switches
+  - Attach Management PC to SW-A port F0/1 in VLAN 20
+  - Secure management VLAN from other VLANs using ACLs on R1
+
+------------------------------------------------------------------
+PHYSICAL CONNECTIONS (Do these FIRST in Packet Tracer)
+------------------------------------------------------------------
+  STEP 1: Connect SW-1 to SW-2
+    - Use a CROSSOVER cable
+    - SW-1 Port F0/23  <---> SW-2 Port F0/23
+
+  STEP 2: Connect Management PC to SW-A
+    - Use a STRAIGHT-THROUGH cable
+    - Management PC NIC  <---> SW-A Port F0/1
+    - Set Management PC IP: 192.168.20.50 / 255.255.255.0
+    - Set Management PC Default Gateway: 192.168.20.100
+
+------------------------------------------------------------------
+Part 1 - Verify Connectivity (before configuration)
+------------------------------------------------------------------
+  Verify: C2 (VLAN 10) <-> C3 (VLAN 10)  [should succeed]
+  Verify: C2 (VLAN 10) <-> D1 (VLAN 5)   [ping twice to allow ARP]
+
+------------------------------------------------------------------
+Part 2 - Configure Trunk Link SW-1 <-> SW-2 (Port F0/23)
+------------------------------------------------------------------
+  NOTE: This is the newly connected crossover cable between SW-1 F0/23 and SW-2 F0/23
+
+SW-1(config)# interface f0/23
+SW-1(config-if)# switchport mode trunk
+SW-1(config-if)# switchport trunk native vlan 15
+SW-1(config-if)# switchport nonegotiate
+SW-1(config-if)# no shutdown
+
+SW-2(config)# interface f0/23
+SW-2(config-if)# switchport mode trunk
+SW-2(config-if)# switchport trunk native vlan 15
+SW-2(config-if)# switchport nonegotiate
+SW-2(config-if)# no shutdown
+
+------------------------------------------------------------------
+Part 3 - Enable Management VLAN 20 on All Switches
+------------------------------------------------------------------
+
+[SW-A] - Also assigns Management PC port to VLAN 20
+SW-A(config)# vlan 20
+SW-A(config-vlan)# exit
+SW-A(config)# interface vlan 20
+SW-A(config-if)# ip address 192.168.20.1 255.255.255.0
+SW-A(config)# interface f0/1
+SW-A(config-if)# switchport access vlan 20
+SW-A(config-if)# no shutdown
+  ! F0/1 is the port where Management PC is physically connected
+
+[SW-B]
+SW-B(config)# vlan 20
+SW-B(config-vlan)# exit
+SW-B(config)# interface vlan 20
+SW-B(config-if)# ip address 192.168.20.2 255.255.255.0
+
+[SW-1]
+SW-1(config)# vlan 20
+SW-1(config-vlan)# exit
+SW-1(config)# interface vlan 20
+SW-1(config-if)# ip address 192.168.20.3 255.255.255.0
+
+[SW-2]
+SW-2(config)# vlan 20
+SW-2(config-vlan)# exit
+SW-2(config)# interface vlan 20
+SW-2(config-if)# ip address 192.168.20.4 255.255.255.0
+
+[Central]
+Central(config)# vlan 20
+Central(config-vlan)# exit
+Central(config)# interface vlan 20
+Central(config-if)# ip address 192.168.20.5 255.255.255.0
+
+------------------------------------------------------------------
+Part 4 - Enable Management PC Access to Router R1 + ACL Security
+------------------------------------------------------------------
+
+[R1]
+  ! Subinterface for VLAN 20
+R1(config)# interface g0/0.3
+R1(config-subif)# encapsulation dot1q 20
+R1(config-subif)# ip address 192.168.20.100 255.255.255.0
+
+  ! ACL 101: Block all traffic destined for VLAN 20 from other VLANs
+R1(config)# access-list 101 deny ip any 192.168.20.0 0.0.0.255
+R1(config)# access-list 101 permit ip any any
+
+  ! ACL 102: Allow only Management PC SSH to the router
+R1(config)# access-list 102 permit ip host 192.168.20.50 any
+
+  ! Apply ACLs to subinterfaces
+R1(config)# interface g0/0.1
+R1(config-subif)# ip access-group 101 in
+R1(config)# interface g0/0.2
+R1(config-subif)# ip access-group 101 in
+R1(config)# line vty 0 4
+R1(config-line)# access-class 102 in
+
+Verify SSH from Management PC to R1:
+  PC> ssh -l SSHadmin 192.168.20.100    Password: ciscosshpa55
+
+Verification Results:
+  Management PC -> ping SW-A, SW-B, R1: SUCCEEDS (all in 192.168.20.0 network)
+  D1 -> ping Management PC: FAILS (router ACL blocks cross-VLAN access to 192.168.20.0)
+
+
+================================================================
+PRACTICAL 10 - Configure and Verify a Site-to-Site IPsec VPN Using CLI
+VPN Tunnel: R1 (192.168.1.x) <-> R3 (192.168.3.x) via R2 (pass-through)
+================================================================
+
+VPN Parameters Summary:
+  IKE Phase 1: AES-256, SHA-1, Pre-share, DH Group 5, Lifetime 86400s, Key: vpnpa55
+  IKE Phase 2: Transform-Set VPN-SET (esp-aes + esp-sha-hmac), Crypto Map VPN-MAP
+  R1 peers to 10.2.2.2 (R3 S0/0/1) | R3 peers to 10.1.1.2 (R1 S0/0/0)
+
+------------------------------------------------------------------
+Part 1 - Configure IPsec on R1
+------------------------------------------------------------------
+R1(config)# license boot module c1900 technology-package securityk9
+  ! Accept EULA, save and reload
+
+R1(config)# access-list 110 permit ip 192.168.1.0 0.0.0.255 192.168.3.0 0.0.0.255
+
+R1(config)# crypto isakmp policy 10
+R1(config-isakmp)# encryption aes 256
+R1(config-isakmp)# authentication pre-share
+R1(config-isakmp)# group 5
+R1(config-isakmp)# exit
+R1(config)# crypto isakmp key vpnpa55 address 10.2.2.2
+
+R1(config)# crypto ipsec transform-set VPN-SET esp-aes esp-sha-hmac
+R1(config)# crypto map VPN-MAP 10 ipsec-isakmp
+R1(config-crypto-map)# description VPN connection to R3
+R1(config-crypto-map)# set peer 10.2.2.2
+R1(config-crypto-map)# set transform-set VPN-SET
+R1(config-crypto-map)# match address 110
+R1(config-crypto-map)# exit
+R1(config)# interface s0/0/0
+R1(config-if)# crypto map VPN-MAP
+
+------------------------------------------------------------------
+Part 2 - Configure IPsec on R3
+------------------------------------------------------------------
+R3(config)# access-list 110 permit ip 192.168.3.0 0.0.0.255 192.168.1.0 0.0.0.255
+
+R3(config)# crypto isakmp policy 10
+R3(config-isakmp)# encryption aes 256
+R3(config-isakmp)# authentication pre-share
+R3(config-isakmp)# group 5
+R3(config-isakmp)# exit
+R3(config)# crypto isakmp key vpnpa55 address 10.1.1.2
+
+R3(config)# crypto ipsec transform-set VPN-SET esp-aes esp-sha-hmac
+R3(config)# crypto map VPN-MAP 10 ipsec-isakmp
+R3(config-crypto-map)# description VPN connection to R1
+R3(config-crypto-map)# set peer 10.1.1.2
+R3(config-crypto-map)# set transform-set VPN-SET
+R3(config-crypto-map)# match address 110
+R3(config-crypto-map)# exit
+R3(config)# interface s0/0/1
+R3(config-if)# crypto map VPN-MAP
+
+------------------------------------------------------------------
+Part 3 - Verify IPsec VPN
+------------------------------------------------------------------
+R1# show crypto ipsec sa
+  ! Before traffic: encaps/decaps = 0
+  ! After ping PC-A -> PC-C: encaps/decaps > 0 (tunnel working)
+  ! After ping PC-A -> PC-B (uninteresting): packet count unchanged
+
+PC-A -> ping PC-C (Interesting Traffic - triggers tunnel):
+  PC> ping 192.168.3.3
+
+
+================================================================
+PRACTICAL 11 - Configuring ASA Basic Settings and Firewall Using CLI
+ASA 5505 | Inside VLAN1: 192.168.1.x | Outside VLAN2: 209.165.200.x | DMZ VLAN3: 192.168.2.x
+================================================================
+
+Objectives:
+  - Configure ASA hostname, domain, passwords, interfaces with security levels
+  - Configure static default route and PAT (NAT)
+  - Configure MPF (ICMP inspection), DHCP, AAA, SSH
+  - Configure DMZ with static NAT and ACLs
+
+------------------------------------------------------------------
+Part 2 - Basic ASA Settings and Interface Security
+------------------------------------------------------------------
+ASA(config)# hostname CCNAS-ASA
+CCNAS-ASA(config)# domain-name ccnasecurity.com
+CCNAS-ASA(config)# enable password ciscoenpa55
+
+  ! VLAN 1 - Inside (Security Level 100)
+CCNAS-ASA(config)# interface vlan 1
+CCNAS-ASA(config-if)# nameif inside
+CCNAS-ASA(config-if)# ip address 192.168.1.1 255.255.255.0
+CCNAS-ASA(config-if)# security-level 100
+
+  ! VLAN 2 - Outside (Security Level 0)
+CCNAS-ASA(config-if)# interface vlan 2
+CCNAS-ASA(config-if)# nameif outside
+CCNAS-ASA(config-if)# ip address 209.165.200.226 255.255.255.248
+CCNAS-ASA(config-if)# security-level 0
+
+------------------------------------------------------------------
+Part 3 - Routing, PAT, and ICMP Inspection
+------------------------------------------------------------------
+  ! Static default route via R1 G0/0
+CCNAS-ASA(config)# route outside 0.0.0.0 0.0.0.0 209.165.200.225
+
+  ! PAT using network object
+CCNAS-ASA(config)# object network inside-net
+CCNAS-ASA(config-network-object)# subnet 192.168.1.0 255.255.255.0
+CCNAS-ASA(config-network-object)# nat (inside,outside) dynamic interface
+CCNAS-ASA(config-network-object)# end
+
+  ! MPF - Inspect ICMP
+CCNAS-ASA(config)# class-map inspection_default
+CCNAS-ASA(config-cmap)# match default-inspection-traffic
+CCNAS-ASA(config-cmap)# exit
+CCNAS-ASA(config)# policy-map global_policy
+CCNAS-ASA(config-pmap)# class inspection_default
+CCNAS-ASA(config-pmap-c)# inspect icmp
+CCNAS-ASA(config-pmap-c)# exit
+CCNAS-ASA(config)# service-policy global_policy global
+
+------------------------------------------------------------------
+Part 4 - DHCP, AAA, and SSH
+------------------------------------------------------------------
+CCNAS-ASA(config)# dhcpd address 192.168.1.5-192.168.1.36 inside
+CCNAS-ASA(config)# dhcpd dns 209.165.201.2 interface inside
+CCNAS-ASA(config)# dhcpd enable inside
+
+CCNAS-ASA(config)# username admin password adminpa55
+CCNAS-ASA(config)# aaa authentication ssh console LOCAL
+
+CCNAS-ASA(config)# crypto key generate rsa modulus 1024
+  ! If prompted to replace existing keys -> enter: no
+CCNAS-ASA(config)# ssh 192.168.1.0 255.255.255.0 inside
+CCNAS-ASA(config)# ssh 172.16.3.3 255.255.255.255 outside
+CCNAS-ASA(config)# ssh timeout 10
+
+Test SSH Connections:
+  PC-C -> SSH to ASA (Outside): PC> ssh -l admin 209.165.200.226   Password: adminpa55
+  PC-B -> SSH to ASA (Inside):  PC> ssh -l admin 192.168.1.1       Password: adminpa55
+
+  NOTE: Change PC-B from static IP to DHCP after DHCP is configured.
+
+------------------------------------------------------------------
+Part 5 - Configure DMZ (VLAN 3), Static NAT, and ACLs
+------------------------------------------------------------------
+  ! VLAN 3 - DMZ (Security Level 70)
+CCNAS-ASA(config)# interface vlan 3
+CCNAS-ASA(config-if)# ip address 192.168.2.1 255.255.255.0
+CCNAS-ASA(config-if)# no forward interface vlan 1
+CCNAS-ASA(config-if)# nameif dmz
+CCNAS-ASA(config-if)# security-level 70
+
+  ! Assign physical port E0/2 to VLAN 3
+CCNAS-ASA(config-if)# interface Ethernet0/2
+CCNAS-ASA(config-if)# switchport access vlan 3
+
+  ! Static NAT for DMZ server (192.168.2.3 -> 209.165.200.227)
+CCNAS-ASA(config)# object network dmz-server
+CCNAS-ASA(config-network-object)# host 192.168.2.3
+CCNAS-ASA(config-network-object)# nat (dmz,outside) static 209.165.200.227
+CCNAS-ASA(config-network-object)# exit
+
+  ! ACL: Allow ICMP + HTTP from outside to DMZ server
+CCNAS-ASA(config)# access-list OUTSIDE-DMZ permit icmp any host 192.168.2.3
+CCNAS-ASA(config)# access-list OUTSIDE-DMZ permit tcp any host 192.168.2.3 eq 80
+CCNAS-ASA(config)# access-group OUTSIDE-DMZ in interface outside
+
+
+================================================================
+  Security in Computing - Packet Tracer Command Reference
+  University of Mumbai BSc IT | Teacher's Reference Manual (2018-19)
+================================================================
